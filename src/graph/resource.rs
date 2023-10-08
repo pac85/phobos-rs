@@ -32,6 +32,8 @@ pub(crate) enum ResourceUsage {
     Attachment(AttachmentType),
     ShaderRead,
     ShaderWrite,
+    TransferRead,
+    TransferWrite,
 }
 
 impl ResourceUsage {
@@ -51,6 +53,8 @@ impl ResourceUsage {
             }
             ResourceUsage::ShaderRead => vk::AccessFlags2::SHADER_READ,
             ResourceUsage::ShaderWrite => vk::AccessFlags2::SHADER_WRITE,
+            ResourceUsage::TransferRead => vk::AccessFlags2::TRANSFER_READ,
+            ResourceUsage::TransferWrite => vk::AccessFlags2::TRANSFER_WRITE,
         }
     }
 
@@ -62,6 +66,8 @@ impl ResourceUsage {
             ResourceUsage::Attachment(_) => false,
             ResourceUsage::ShaderRead => true,
             ResourceUsage::ShaderWrite => false,
+            ResourceUsage::TransferRead => true,
+            ResourceUsage::TransferWrite  => false,
         }
     }
 }

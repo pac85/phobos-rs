@@ -348,6 +348,38 @@ impl<'cb, D: ExecutionDomain, U, A: Allocator> PassBuilder<'cb, D, U, A> {
         self
     }
 
+    pub fn write_transfer_resource(mut self, resource: &VirtualResource, stage: PipelineStage) -> Self {
+        self.inner.inputs.push(PassResource {
+            usage: ResourceUsage::TransferRead,
+            resource: resource.clone(),
+            stage,
+            layout: vk::ImageLayout::GENERAL,
+            clear_value: None,
+            load_op: None,
+        });
+        self.inner.outputs.push(PassResource {
+            usage: ResourceUsage::TransferWrite,
+            resource: resource.upgrade(),
+            stage,
+            layout: vk::ImageLayout::GENERAL,
+            clear_value: None,
+            load_op: None,
+        });
+        self
+    }
+
+    pub fn read_transfer_resource(mut self, resource: &VirtualResource, stage: PipelineStage) -> Self {
+        self.inner.inputs.push(PassResource {
+            usage: ResourceUsage::TransferRead,
+            resource: resource.clone(),
+            stage,
+            layout: vk::ImageLayout::GENERAL,
+            clear_value: None,
+            load_op: None,
+        });
+        self
+    }
+
     #[allow(dead_code)]
     fn sample_optional_image(
         self,
