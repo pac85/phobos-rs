@@ -84,4 +84,17 @@ impl<D: TransferSupport + ExecutionDomain, A: Allocator> TransferCmdBuffer
 
         Ok(self)
     }
+
+    fn update_buffer(self, dst: &BufferView, data: &[u8]) -> Result<Self>
+    where
+        Self: Sized, {
+        unsafe {
+            self.device.cmd_update_buffer(
+                self.handle, dst.handle(),
+                dst.offset(),
+                data
+            );
+        }
+        Ok(self)
+    }
 }

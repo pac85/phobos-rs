@@ -26,6 +26,9 @@ pub trait TransferCmdBuffer {
     fn copy_buffer_to_image(self, src: &BufferView, dst: &ImageView) -> Result<Self>
     where
         Self: Sized;
+    fn update_buffer(self, dst: &BufferView, data: &[u8]) -> Result<Self>
+    where
+        Self: Sized;
 }
 
 /// Trait representing a command buffer that supports graphics commands.
