@@ -25,14 +25,21 @@ pub(crate) enum AttachmentType {
 /// Resource usage in a task graph.
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 #[allow(dead_code)]
-pub(crate) enum ResourceUsage {
+pub enum ResourceUsage {
+    /// TODO doc
     #[default]
     Nothing,
+    /// TODO doc
     Present,
+    /// TODO doc
     Attachment(AttachmentType),
+    /// TODO doc
     ShaderRead,
+    /// TODO doc
     ShaderWrite,
+    /// TODO doc
     TransferRead,
+    /// TODO doc
     TransferWrite,
 }
 

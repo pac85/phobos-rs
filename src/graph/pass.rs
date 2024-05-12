@@ -380,6 +380,18 @@ impl<'cb, D: ExecutionDomain, U, A: Allocator> PassBuilder<'cb, D, U, A> {
         self
     }
 
+    pub fn declare_buffer_usage(mut self, resource: &VirtualResource, stage: PipelineStage, usage: ResourceUsage) -> Self {
+        self.inner.inputs.push(PassResource {
+            usage,
+            resource: resource.clone(),
+            stage,
+            layout: vk::ImageLayout::GENERAL,
+            clear_value: None,
+            load_op: None,
+        });
+        self
+    }
+
     #[allow(dead_code)]
     fn sample_optional_image(
         self,
