@@ -39,7 +39,7 @@ pub trait BindlessResource {
 
 impl BindlessResource for crate::image::Image {
     fn descriptor_type() -> vk::DescriptorType {
-        vk::DescriptorType::STORAGE_IMAGE
+        vk::DescriptorType::SAMPLED_IMAGE
     }
 
     fn descriptor_info(&self) -> vk::DescriptorImageInfo {
@@ -80,6 +80,43 @@ impl BindlessResource for CombinedImageSampler {
     fn descriptor_info(&self) -> vk::DescriptorImageInfo {
         vk::DescriptorImageInfo {
             sampler: unsafe { self.sampler.handle() },
+            image_view: unsafe { self.image_view.handle() },
+            image_layout: self.image_layout.unwrap_or(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL),
+        }
+    }
+}
+
+/// Resource for a sampled image.
+#[derive(Debug)]
+pub struct SampledImage {
+    image_view: crate::image::ImageView,
+    image_layout: Option<vk::ImageLayout>,
+}
+
+impl SampledImage {
+    /// Create a new sampled image resource from an ImageView.
+    /// The default image layout [vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL] will be used.
+    pub fn new(image_view: crate::image::ImageView) -> Self {
+        Self {
+            image_view,
+            image_layout: None,
+        }
+    }
+
+    /// Specify an image layout for this combined image sampler
+    pub fn with_layout(self, image_layout: Option<vk::ImageLayout>) -> Self {
+        Self { image_layout, .. self }
+    }
+}
+
+impl BindlessResource for SampledImage {
+    fn descriptor_type() -> vk::DescriptorType {
+        vk::DescriptorType::SAMPLED_IMAGE
+    }
+
+    fn descriptor_info(&self) -> vk::DescriptorImageInfo {
+        vk::DescriptorImageInfo {
+            sampler: vk::Sampler::null(),
             image_view: unsafe { self.image_view.handle() },
             image_layout: self.image_layout.unwrap_or(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL),
         }
