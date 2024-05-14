@@ -60,6 +60,24 @@ pub trait GraphicsCmdBuffer: TransferCmdBuffer {
     ) -> Result<Self>
     where
         Self: Sized;
+    /// Record a single drawcall. Equivalent of `vkCmdDrawIndirect`.
+    fn draw_indirect(
+        self,
+        buffer: &BufferView,
+        draw_count: u32,
+        stride: u32
+    ) -> Result<Self>
+    where
+        Self: Sized;
+    /// Record a single indexed drawcall. Equivalent of `vkCmdDrawIndexedIndirect`
+    fn draw_indexed_indirect(
+        self,
+        buffer: &BufferView,
+        draw_count: u32,
+        stride: u32
+    ) -> Result<Self>
+    where
+        Self: Sized;
     /// Start raytracing. Equivalent of `vkCmdTraceRays`.
     fn trace_rays(self, width: u32, height: u32, depth: u32) -> Result<Self>
     where

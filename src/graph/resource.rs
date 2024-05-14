@@ -41,6 +41,8 @@ pub enum ResourceUsage {
     TransferRead,
     /// TODO doc
     TransferWrite,
+    /// TODO doc
+    IndirectCommandRead,
 }
 
 impl ResourceUsage {
@@ -62,6 +64,7 @@ impl ResourceUsage {
             ResourceUsage::ShaderWrite => vk::AccessFlags2::SHADER_WRITE,
             ResourceUsage::TransferRead => vk::AccessFlags2::TRANSFER_READ,
             ResourceUsage::TransferWrite => vk::AccessFlags2::TRANSFER_WRITE,
+            ResourceUsage::IndirectCommandRead => vk::AccessFlags2::INDIRECT_COMMAND_READ,
         }
     }
 
@@ -75,6 +78,7 @@ impl ResourceUsage {
             ResourceUsage::ShaderWrite => false,
             ResourceUsage::TransferRead => true,
             ResourceUsage::TransferWrite  => false,
+            ResourceUsage::IndirectCommandRead => true,
         }
     }
 }

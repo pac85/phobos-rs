@@ -159,6 +159,43 @@ impl<D: GfxSupport + ExecutionDomain, A: Allocator> GraphicsCmdBuffer
         Ok(self)
     }
 
+    /// Record a single drawcall. Equivalent of `vkCmdDrawIndirect`.
+    fn draw_indirect(
+        self,
+        buffer: &BufferView,
+        draw_count: u32,
+        stride: u32
+    ) -> Result<Self> {
+        unsafe {
+            self.device.cmd_draw_indirect(
+                self.handle, buffer.handle(),
+                buffer.offset(),
+                draw_count,
+                stride
+            )
+        }
+        Ok(self)
+    }
+
+    /// Record a single indexed drawcall. Equivalent of `vkCmdDrawIndexedIndirect`
+    fn draw_indexed_indirect(
+        mut self,
+        buffer: &BufferView,
+        draw_count: u32,
+        stride: u32
+    ) -> Result<Self> {
+        self = self.ensure_descriptor_state()?;
+        unsafe {
+            self.device.cmd_draw_indexed_indirect(
+                self.handle, buffer.handle(),
+                buffer.offset(),
+                draw_count,
+                stride
+            )
+        }
+        Ok(self)
+    }
+
     /// Issue a `vkCmdTraceRaysKHR` command. Requires [`ExtensionID::RayTracingPipeline`] to be enabled.
     fn trace_rays(mut self, width: u32, height: u32, depth: u32) -> Result<Self>
     where
