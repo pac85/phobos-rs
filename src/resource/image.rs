@@ -126,6 +126,7 @@ unsafe impl Sync for ImageView {}
 /// Settings that describe how an image should be created
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct ImageCreateInfo {
+    pub image_type: vk::ImageType,
     /// Width in pixels of the image
     pub width: u32,
     /// Height in pixels of the image
@@ -163,16 +164,6 @@ impl<A: Allocator> Image<A> {
             vk::SharingMode::CONCURRENT
         };
 
-        let image_type = if info.height == 1 && info.depth == 1 {
-            vk::ImageType::TYPE_1D
-        } else if info.depth > 1 {
-            vk::ImageType::TYPE_3D
-        } else if info.height > 1 {
-            vk::ImageType::TYPE_2D
-        } else {
-            return Err(anyhow::anyhow!("Image extents invalid"));
-        };
-
         let extent = vk::Extent3D {
             width: info.width,
             height: info.height,
@@ -184,7 +175,7 @@ impl<A: Allocator> Image<A> {
                     s_type: vk::StructureType::IMAGE_CREATE_INFO,
                     p_next: std::ptr::null(),
                     flags: Default::default(),
-                    image_type,
+                    image_type: info.image_type,
                     format: info.format,
                     extent,
                     mip_levels: info.mip_levels,
@@ -258,17 +249,7 @@ impl<A: Allocator> Image<A> {
     /// <br>
     /// # Lifetime
     /// The returned [`ImageView`] is valid as long as `self` is valid.
-    pub fn whole_view(&self, aspect: vk::ImageAspectFlags) -> Result<ImageView> {
-        let view_type = if self.size.width == 1 && self.size.width == 1 && self.size.depth == 1 {
-            vk::ImageViewType::TYPE_1D
-        } else if self.size.depth > 1 {
-            vk::ImageViewType::TYPE_3D
-        } else if self.size.height > 1 {
-            vk::ImageViewType::TYPE_2D
-        } else {
-            anyhow::bail!("Image extents invalid");
-        };
-
+    pub fn whole_view(&self, view_type: vk::ImageViewType, aspect: vk::ImageAspectFlags) -> Result<ImageView> {
         self.view(
             ImageViewCreateInfo {
                 aspect,

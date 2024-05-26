@@ -2,6 +2,7 @@ use std::path::Path;
 
 use anyhow::Result;
 
+use ash::vk::ImageType;
 use phobos::{image, vk};
 use phobos::command_buffer::traits::*;
 use phobos::graph::pass::ClearColor;
@@ -80,6 +81,7 @@ impl ExampleApp for Basic {
             ImageCreateInfo {
                 width: 800,
                 height: 600,
+                image_type: ImageType::TYPE_2D,
                 depth: 1,
                 usage: vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::SAMPLED,
                 format: vk::Format::R8G8B8A8_SRGB,
@@ -96,7 +98,7 @@ impl ExampleApp for Basic {
         ];
 
         let resources = Resources {
-            offscreen_view: image.whole_view(vk::ImageAspectFlags::COLOR)?,
+            offscreen_view: image.whole_view(vk::ImageViewType::TYPE_2D, vk::ImageAspectFlags::COLOR)?,
             offscreen: image,
             sampler: Sampler::default(ctx.device.clone())?,
             vertex_buffer: staged_buffer_upload(

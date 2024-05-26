@@ -296,7 +296,7 @@ impl ExampleApp for RaytracingSample {
                 memory_type: phobos::MemoryType::GpuOnly
             },
         )?;
-        let view = attachment.whole_view(vk::ImageAspectFlags::COLOR)?;
+        let view = attachment.whole_view(vk::ImageViewType::TYPE_2D, vk::ImageAspectFlags::COLOR)?;
 
         let sampler = Sampler::default(ctx.device.clone())?;
 

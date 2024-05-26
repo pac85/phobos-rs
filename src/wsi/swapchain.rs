@@ -3,7 +3,7 @@
 use std::ops::Deref;
 
 use anyhow::Result;
-use ash::vk;
+use ash::vk::{self, ImageViewType};
 
 use crate::{AppSettings, Device, Error, Instance, Surface, WindowInterface};
 use crate::image::*;
@@ -94,7 +94,7 @@ impl Swapchain {
                     vk::SampleCountFlags::TYPE_1,
                 );
                 // Create a trivial ImgView.
-                let view = image.whole_view(vk::ImageAspectFlags::COLOR)?;
+                let view = image.whole_view(ImageViewType::TYPE_2D, vk::ImageAspectFlags::COLOR)?;
                 // Bundle them together into an owning ImageView
                 Ok(SwapchainImage {
                     image,

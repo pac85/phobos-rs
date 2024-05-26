@@ -230,7 +230,7 @@ impl<A: Allocator> FrameManager<A> {
                         vk::SampleCountFlags::TYPE_1,
                     );
                     // Create a trivial ImageView.
-                    let view = image.whole_view(vk::ImageAspectFlags::COLOR)?;
+                    let view = image.whole_view(vk::ImageViewType::TYPE_2D, vk::ImageAspectFlags::COLOR)?;
                     Ok(SwapchainImage {
                         image,
                         view,
