@@ -1,7 +1,7 @@
 //! Exposes wrappers for `VkDescriptorSetLayout` objects.
 
 use anyhow::Result;
-use ash::vk;
+use ash::vk::{self, DescriptorBindingFlags, DescriptorSetLayoutCreateFlags};
 
 use crate::util::cache::{Resource, ResourceKey};
 use crate::Device;
@@ -59,8 +59,16 @@ impl Resource for DescriptorSetLayout {
             p_binding_flags: key.flags.as_ptr(),
         };
 
+        let update_after_bind = key.flags.iter().any(|f| f.contains(DescriptorBindingFlags::UPDATE_AFTER_BIND));
+
         let info = vk::DescriptorSetLayoutCreateInfo::builder()
             .bindings(key.bindings.as_slice())
+            .flags(
+                if update_after_bind {
+                    DescriptorSetLayoutCreateFlags::UPDATE_AFTER_BIND_POOL
+                }  else {
+                    DescriptorSetLayoutCreateFlags::empty()
+                })
             .push_next(&mut flags)
             .build();
         let handle = unsafe { device.create_descriptor_set_layout(&info, None)? };

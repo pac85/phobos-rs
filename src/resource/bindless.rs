@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
 
-use ash::vk;
+use ash::vk::{self, DescriptorImageInfo};
 
 use crate::{pipeline::set_layout::DescriptorSetLayoutCreateInfo, util::cache::Resource};
 
@@ -146,28 +146,27 @@ impl<R: BindlessResource> BindlessHandle<R> {
 pub(crate) struct BindlessPoolInner<R> {
     items: Vec<Option<R>>,
     free: Vec<u32>,
+    dsl: crate::pipeline::set_layout::DescriptorSetLayout,
     pub(crate) descriptor_set: Arc<crate::DescriptorSet>,
 }
 
 impl<R: BindlessResource> BindlessPoolInner<R> {
     fn update_descriptor_set<'a>(&'a mut self, r: impl Iterator<Item = (u32, &'a R)>) {
+        let mut v = vec![];
         let vk_writes = r
             .map(|(i, r)| {
-                vk::WriteDescriptorSet {
-                    s_type: vk::StructureType::WRITE_DESCRIPTOR_SET,
-                    p_next: std::ptr::null(),
-                    dst_set: self.descriptor_set.handle,
-                    dst_binding: 0,
-                    dst_array_element: i,
-                    descriptor_count: 1,
-                    descriptor_type: R::descriptor_type(),
-                    p_image_info: &r.descriptor_info() as *const _,
-                    p_buffer_info: std::ptr::null(),
-                    p_texel_buffer_view: std::ptr::null(),
-                }
+                v.push([r.descriptor_info()]);
+                vk::WriteDescriptorSet::builder()
+                    .dst_set(self.descriptor_set.handle)
+                    .dst_binding(0)
+                    .dst_array_element(i)
+                    .descriptor_type(R::descriptor_type())
+                    .image_info(v.last().unwrap())
+                    .build()
             })
             .collect::<Vec<_>>();
 
+        println!("updating ds");
         unsafe {
             self.descriptor_set.device.update_descriptor_sets(vk_writes.as_slice(), &[]);
         }
@@ -264,7 +263,7 @@ impl<P: BindlessResource> BindlessPool<P> {
                 P::resource_binding(0)
             ],
             persistent: true,
-            flags: vec![vk::DescriptorBindingFlags::UPDATE_AFTER_BIND, vk::DescriptorBindingFlags::PARTIALLY_BOUND],
+            flags: vec![vk::DescriptorBindingFlags::UPDATE_AFTER_BIND | vk::DescriptorBindingFlags::PARTIALLY_BOUND],
         };
         let dsl = crate::pipeline::set_layout::DescriptorSetLayout::create(device.clone(), &dsl_info, ())?;
         let descriptor_set = unsafe { crate::DescriptorSet::new_uninitialized(device, dsl.handle(), pool)? };
@@ -273,6 +272,7 @@ impl<P: BindlessResource> BindlessPool<P> {
         let inner = BindlessPoolInner {
             items: vec![],
             free: vec![],
+            dsl,
             descriptor_set,
         };
 
