@@ -381,14 +381,25 @@ impl<'cb, D: ExecutionDomain, U, A: Allocator> PassBuilder<'cb, D, U, A> {
     }
 
     pub fn declare_buffer_usage(mut self, resource: &VirtualResource, stage: PipelineStage, usage: ResourceUsage) -> Self {
-        self.inner.inputs.push(PassResource {
-            usage,
-            resource: resource.clone(),
-            stage,
-            layout: vk::ImageLayout::GENERAL,
-            clear_value: None,
-            load_op: None,
-        });
+        if usage.is_read() {
+            self.inner.inputs.push(PassResource {
+                usage,
+                resource: resource.clone(),
+                stage,
+                layout: vk::ImageLayout::GENERAL,
+                clear_value: None,
+                load_op: None,
+            });
+        } else {
+            self.inner.outputs.push(PassResource {
+                usage,
+                resource: resource.upgrade(),
+                stage,
+                layout: vk::ImageLayout::GENERAL,
+                clear_value: None,
+                load_op: None,
+            });
+        }
         self
     }
 
