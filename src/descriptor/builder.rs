@@ -14,6 +14,8 @@ use crate::graph::physical_resource::PhysicalResource;
 use crate::pipeline::shader_reflection::ReflectionInfo;
 use crate::raytracing::acceleration_structure::AccelerationStructure;
 
+use super::descriptor_set::DescriptorSamplerInfo;
+
 /// This structure is used to build up [`DescriptorSetBinding`](crate::descriptor::descriptor_set::DescriptorSetBinding) objects for requesting descriptor sets.
 /// Public usage of this API is deprecated, use the provided methods inside [`IncompleteCommandBuffer`](crate::IncompleteCommandBuffer).
 /// # Example usage
@@ -135,6 +137,17 @@ impl<'r> DescriptorSetBuilder<'r> {
                     layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
                 })
             }).collect()
+        });
+    }
+
+    /// Bind a sampler to the given binding as a [`vk::DescriptorType::SAMPLER`]
+    pub fn bind_sampler(&mut self, binding: u32, sampler: &Sampler) {
+        self.inner.bindings.push(DescriptorBinding {
+            binding,
+            ty: vk::DescriptorType::SAMPLER,
+            descriptors: vec![DescriptorContents::Sampler(DescriptorSamplerInfo {
+                sampler: unsafe { sampler.handle() },
+            })],
         });
     }
 

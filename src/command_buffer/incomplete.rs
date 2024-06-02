@@ -337,6 +337,20 @@ impl<D: ExecutionDomain, A: Allocator> IncompleteCommandBuffer<'_, D, A> {
         Ok(self)
     }
 
+    /// Binds a new descriptor with type [`vk::DescriptorType::SAMPLER`].
+    pub fn bind_sampler(
+        mut self,
+        set: u32,
+        binding: u32,
+        sampler: &Sampler,
+    ) -> Result<Self> {
+        self.modify_descriptor_set(set, |builder| {
+            builder.bind_sampler(binding, sampler);
+            Ok(())
+        })?;
+        Ok(self)
+    }
+
     /// Bind a [`BindlessPool`](crate::resouce::bindless::BindlessPool)
     pub fn bind_bindless_pool<R>(
         mut self,

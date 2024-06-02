@@ -72,32 +72,41 @@ fn find_sampled_images(
     resources: &ShaderResources,
     info: &mut ReflectionInfo,
 ) -> Result<()> {
-    for image in &resources.sampled_images {
-        let binding = ast.get_decoration(image.id, Decoration::Binding)?;
-        let set = ast.get_decoration(image.id, Decoration::DescriptorSet)?;
-        let ty = ast.get_type(image.type_id)?;
-        let Type::SampledImage { array, .. } = ty else { unimplemented!() };
-        let (count, flags) = if !array.is_empty() {
-            if array[0] == 0 {
-                (4096, vk::DescriptorBindingFlags::PARTIALLY_BOUND)
+    for images in [&resources.sampled_images, &resources.separate_samplers, &resources.separate_images] {
+        println!("a");
+        for image in images {
+            let binding = ast.get_decoration(image.id, Decoration::Binding)?;
+            let set = ast.get_decoration(image.id, Decoration::DescriptorSet)?;
+            let ty = ast.get_type(image.type_id)?;
+            println!("aaa");
+            let (ty, array) = match ty {
+                Type::SampledImage { array, .. } => (vk::DescriptorType::COMBINED_IMAGE_SAMPLER, array),
+                Type::Sampler { array, .. } => (vk::DescriptorType::SAMPLER, array),
+                Type::Image { array, .. } => (vk::DescriptorType::SAMPLED_IMAGE, array),
+                _ => unimplemented!()
+            };
+            let (count, flags) = if !array.is_empty() {
+                if array[0] == 0 {
+                    (4096, vk::DescriptorBindingFlags::PARTIALLY_BOUND)
+                } else {
+                    (array[0], vk::DescriptorBindingFlags::PARTIALLY_BOUND)
+                }
             } else {
-                (array[0], vk::DescriptorBindingFlags::PARTIALLY_BOUND)
-            }
-        } else {
-            (1, vk::DescriptorBindingFlags::empty())
-        };
+                (1, vk::DescriptorBindingFlags::empty())
+            };
 
-        info.bindings.insert(
-            ast.get_name(image.id)?,
-            BindingInfo {
-                set,
-                binding,
-                stage,
-                count,
-                ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-                flags,
-            },
-        );
+            info.bindings.insert(
+                ast.get_name(image.id)?,
+                BindingInfo {
+                    set,
+                    binding,
+                    stage,
+                    count,
+                    ty,
+                    flags,
+                },
+            );
+        }
     }
     Ok(())
 }

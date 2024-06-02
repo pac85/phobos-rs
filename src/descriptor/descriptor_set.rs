@@ -15,6 +15,11 @@ pub(crate) struct DescriptorImageInfo {
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub(crate) struct DescriptorSamplerInfo {
+    pub sampler: vk::Sampler,
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub(crate) struct DescriptorBufferInfo {
     pub buffer: BufferView,
 }
@@ -22,6 +27,7 @@ pub(crate) struct DescriptorBufferInfo {
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub(crate) enum DescriptorContents {
     Image(DescriptorImageInfo),
+    Sampler(DescriptorSamplerInfo),
     Buffer(DescriptorBufferInfo),
     AccelerationStructure(vk::AccelerationStructureKHR),
 }
@@ -83,11 +89,22 @@ fn binding_image_info(binding: &DescriptorBinding) -> Vec<vk::DescriptorImageInf
         .descriptors
         .iter()
         .map(|descriptor| {
-            let DescriptorContents::Image(image) = descriptor else { panic!("Missing descriptor type case?") };
-            vk::DescriptorImageInfo {
-                sampler: image.sampler,
-                image_view: unsafe { image.view.handle() },
-                image_layout: image.layout,
+            match descriptor {
+                DescriptorContents::Image(image) => {
+                    vk::DescriptorImageInfo {
+                        sampler: image.sampler,
+                        image_view: unsafe { image.view.handle() },
+                        image_layout: image.layout,
+                    }
+                },
+                DescriptorContents::Sampler(sampler) => {
+                    vk::DescriptorImageInfo {
+                        sampler: sampler.sampler,
+                        image_view: vk::ImageView::null(),
+                        image_layout: vk::ImageLayout::UNDEFINED,
+                    }
+                },
+                _ => panic!("Missing descriptor type case?"),
             }
         })
         .collect()
@@ -165,6 +182,9 @@ impl Resource for DescriptorSet {
                         write.image_info = Some(binding_image_info(binding));
                     }
                     vk::DescriptorType::SAMPLED_IMAGE => {
+                        write.image_info = Some(binding_image_info(binding));
+                    }
+                    vk::DescriptorType::SAMPLER => {
                         write.image_info = Some(binding_image_info(binding));
                     }
                     vk::DescriptorType::STORAGE_IMAGE => {
