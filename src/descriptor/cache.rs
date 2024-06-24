@@ -54,10 +54,12 @@ impl DescriptorCacheInner {
 
         loop {
             bindings.pool = unsafe { self.pool.handle() };
-            let is_ok = { self.cache.get_or_create(&bindings, ()).is_ok() };
-            if is_ok {
-                // Need to query again to fix lifetime compiler error
-                return Ok(self.cache.get_or_create(&bindings, ()).unwrap());
+            let descriptor_set = self.cache.get_or_create(&bindings, ());
+            if let Ok(descriptor_set) = descriptor_set {
+                // work around borrow checker's limitation by transmuting the lifetime
+                return unsafe {
+                    Ok(std::mem::transmute::<&DescriptorSet, &DescriptorSet>(descriptor_set))
+                };
             } else {
                 let new_size = grow_pool_size(self.pool.size().clone(), &bindings);
                 // Create new pool, swap it out with the old one and then push the old one onto the deletion queue
