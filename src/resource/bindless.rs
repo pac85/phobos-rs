@@ -279,3 +279,9 @@ impl<P: BindlessResource> BindlessPool<P> {
         Ok(Self { inner: Arc::new(Mutex::new(inner)) })
     }
 }
+
+impl<R> Clone for BindlessPool<R> {
+    fn clone(&self) -> Self {
+        Self { inner: self.inner.clone() }
+    }
+}
