@@ -311,6 +311,14 @@ impl<'cb, D: ExecutionDomain, U, A: Allocator> PassBuilder<'cb, D, U, A> {
             clear_value: None,
             load_op: None,
         });
+        self.inner.outputs.push(PassResource {
+            usage: ResourceUsage::ShaderRead,
+            resource: resource.upgrade(),
+            stage,
+            layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+            clear_value: None,
+            load_op: None,
+        });
         self
     }
 
