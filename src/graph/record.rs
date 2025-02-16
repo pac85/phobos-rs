@@ -1,6 +1,6 @@
 //! Provides methods to record a pass graph to a command buffer
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::ffi::CString;
 use std::sync::Arc;
 
@@ -21,6 +21,12 @@ use crate::graph::resource::{AttachmentType, ResourceUsage};
 use crate::graph::task_graph::Node;
 use crate::pool::LocalPool;
 use crate::sync::domain::ExecutionDomain;
+
+struct ResourceState {
+    last_access: vk::AccessFlags2,
+    last_stage: vk::PipelineStageFlags2,
+    last_layout: vk::ImageLayout,
+}
 
 /// Implement this on a type to be able to record this type to a command buffer.
 pub trait RecordGraphToCommandBuffer<D: ExecutionDomain, U, A: Allocator> {
@@ -372,6 +378,7 @@ fn record_barrier<'q, D: ExecutionDomain, A: Allocator>(
 
 fn record_node<'q, D: ExecutionDomain, U, A: Allocator>(
     graph: &mut BuiltPassGraph<'_, D, U, A>,
+    resource_states: &mut HashMap<String, ResourceState>,
     node: NodeIndex,
     bindings: &PhysicalResourceBindings,
     local_pool: &mut LocalPool<A>,
@@ -380,13 +387,48 @@ fn record_node<'q, D: ExecutionDomain, U, A: Allocator>(
     user_data: &mut U,
 ) -> Result<IncompleteCommandBuffer<'q, D, A>> {
     let graph = &mut graph.graph.graph;
-    let dst_resource_res = PassGraph::barrier_dst_resource(graph, node).cloned();
     let weight = graph.node_weight_mut(node).unwrap();
+
     match weight {
-        Node::Task(pass) => record_pass(pass, bindings, local_pool, cmd, debug, user_data),
+        Node::Task(pass) => {
+            //TODO record barriers
+            let mut cmd = cmd;
+            for res in pass.inputs.iter().chain(pass.outputs.iter()) {
+                let state = resource_states.get(res.resource.name());
+                let src_access = state.map(|state| state.last_access).unwrap_or(vk::AccessFlags2::empty());
+                let src_stage = state.map(|state| state.last_stage).unwrap_or(vk::PipelineStageFlags2::empty());
+                let mut resource = res.clone();
+                resource.layout = state.map(|state| state.last_layout).unwrap_or(vk::ImageLayout::UNDEFINED);
+                let barrier = PassResourceBarrier {
+                    resource,
+                    src_access,
+                    dst_access: res.usage.access(),
+                    src_stage,
+                    dst_stage: res.stage,
+                };
+
+                if pass.identifier != "_source" {
+                    cmd = record_barrier(&barrier, &res, bindings, cmd)?;
+                }
+
+                resource_states.insert(
+                    res.resource.name().to_string(),
+                    ResourceState {
+                        last_access: barrier.dst_access,
+                        last_stage: barrier.dst_stage,
+                        last_layout: res.layout,
+                    }
+                );
+            }
+            // keep track of the state of each resource seen so far in recording
+            // if different record a barrier to transition
+
+            record_pass(pass, bindings, local_pool, cmd, debug, user_data)
+        },
         Node::Barrier(barrier) => {
             // Find destination resource in graph
-            record_barrier(barrier, &dst_resource_res?, bindings, cmd)
+            // record_barrier(barrier, &dst_resource_res?, bindings, cmd)
+            unreachable!()
         }
         Node::_Unreachable(_) => {
             unreachable!()
@@ -410,12 +452,13 @@ impl<'cb, D: ExecutionDomain, U, A: Allocator> RecordGraphToCommandBuffer<D, U, 
         Self: Sized, {
         let mut active = HashSet::new();
         let mut children = HashSet::new();
+        let mut resource_states = HashMap::new();
         for start in self.graph.sources() {
             insert_in_active_set(start, self, &mut active, &mut children);
         }
         // Record each initial active node.
         for node in &active {
-            cmd = record_node(self, *node, bindings, local_pool, cmd, debug.clone(), user_data)?;
+            cmd = record_node(self, &mut resource_states, *node, bindings, local_pool, cmd, debug.clone(), user_data)?;
         }
 
         while active.len() != self.num_nodes() {
@@ -426,6 +469,7 @@ impl<'cb, D: ExecutionDomain, U, A: Allocator> RecordGraphToCommandBuffer<D, U, 
                 if parents!(child, self).all(|parent| active.contains(&parent)) {
                     cmd = record_node(
                         self,
+                        &mut resource_states,
                         *child,
                         bindings,
                         local_pool,

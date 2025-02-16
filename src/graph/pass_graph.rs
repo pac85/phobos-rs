@@ -240,8 +240,8 @@ impl<'cb, D: ExecutionDomain, U, A: Allocator> PassGraph<'cb, D, U, A> {
     ///   construct an unambiguous graph.
     pub fn build(mut self) -> Result<BuiltPassGraph<'cb, D, U, A>> {
         self.set_source_stages()?;
-        self.graph.create_barrier_nodes();
-        self.merge_identical_barriers()?;
+        // self.graph.create_barrier_nodes();
+        // self.merge_identical_barriers()?;
 
         Ok(BuiltPassGraph {
             graph: self,
