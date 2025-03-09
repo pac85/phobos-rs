@@ -157,9 +157,9 @@ impl<A: Allocator> FrameManager<A> {
 
         match result {
             // We ignore the flag for suboptimal swapchain images for now
-            Ok((index, _)) => Ok(AcquiredImage {
+            Ok((index, subopt)) => Ok(AcquiredImage {
                 index,
-                resize_required: false,
+                resize_required: subopt,
             }),
             Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => Ok(AcquiredImage {
                 index: 0,
