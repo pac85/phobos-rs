@@ -100,10 +100,9 @@ fn create_vk_instance<Window: WindowInterface>(
 
     if let Some(window) = settings.window {
         extensions.extend(
-            ash_window::enumerate_required_extensions(window.raw_display_handle())?
-                .to_vec()
+            window.vk_wsi_exts()
                 .iter()
-                .map(|&raw_str| unsafe { CString::from(CStr::from_ptr(raw_str)) }),
+                .map(|&raw_str| CString::from(raw_str)),
         );
     }
 

@@ -34,13 +34,7 @@ impl Surface {
             let functions =
                 ash::extensions::khr::Surface::new(unsafe { instance.loader() }, instance);
             let handle = unsafe {
-                ash_window::create_surface(
-                    instance.loader(),
-                    instance,
-                    window.raw_display_handle(),
-                    window.raw_window_handle(),
-                    None,
-                )?
+                window.create_surface(instance.loader(), instance)?
             };
             #[cfg(feature = "log-objects")]
             trace!("Created new VkSurfaceKHR {handle:p}");
