@@ -1,7 +1,7 @@
 //! Contains implementations of the transfer domain for command buffers
 
 use anyhow::Result;
-use ash::vk;
+use ash::vk::{self, Extent3D, Offset3D};
 
 use crate::command_buffer::IncompleteCommandBuffer;
 use crate::sync::domain::ExecutionDomain;
@@ -45,17 +45,7 @@ impl<D: TransferSupport + ExecutionDomain, A: Allocator> TransferCmdBuffer
         Ok(self)
     }
 
-    /// Copy a buffer to the base mip level of the specified image.
-    /// # Example
-    /// ```
-    /// # use anyhow::Result;
-    /// # use phobos::*;
-    /// # use phobos::sync::domain::*;
-    /// fn copy_buffer_to_image<C: TransferCmdBuffer>(cmd: C, src: &BufferView, dst: &ImageView) -> Result<C> {
-    ///     cmd.copy_buffer_to_image(src, dst)
-    /// }
-    /// ```
-    fn copy_buffer_to_image(self, src: &BufferView, dst: &ImageView) -> Result<Self>
+    fn copy_buffer_to_image2(self, src: &BufferView, dst: &ImageView, image_offset: Offset3D, image_extent: Extent3D) -> Result<Self>
     where
         Self: Sized, {
         let copy = vk::BufferImageCopy {
@@ -68,8 +58,8 @@ impl<D: TransferSupport + ExecutionDomain, A: Allocator> TransferCmdBuffer
                 base_array_layer: dst.base_layer(),
                 layer_count: dst.layer_count(),
             },
-            image_offset: Default::default(),
-            image_extent: dst.size(),
+            image_offset,
+            image_extent,
         };
 
         unsafe {
@@ -83,6 +73,22 @@ impl<D: TransferSupport + ExecutionDomain, A: Allocator> TransferCmdBuffer
         }
 
         Ok(self)
+    }
+
+    /// Copy a buffer to the base mip level of the specified image.
+    /// # Example
+    /// ```
+    /// # use anyhow::Result;
+    /// # use phobos::*;
+    /// # use phobos::sync::domain::*;
+    /// fn copy_buffer_to_image<C: TransferCmdBuffer>(cmd: C, src: &BufferView, dst: &ImageView) -> Result<C> {
+    ///     cmd.copy_buffer_to_image(src, dst)
+    /// }
+    /// ```
+    fn copy_buffer_to_image(self, src: &BufferView, dst: &ImageView) -> Result<Self>
+    where
+        Self: Sized, {
+        self.copy_buffer_to_image2(src, dst, Default::default(), dst.size())
     }
 
     fn update_buffer(self, dst: &BufferView, data: &[u8]) -> Result<Self>

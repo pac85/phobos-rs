@@ -23,6 +23,10 @@ pub trait TransferCmdBuffer {
     where
         Self: Sized;
     /// Copy a buffer to an image.
+    fn copy_buffer_to_image2(self, src: &BufferView, dst: &ImageView, image_offset: vk::Offset3D, image_extent: vk::Extent3D) -> Result<Self>
+    where
+        Self: Sized;
+    /// Copy a buffer to an image.
     fn copy_buffer_to_image(self, src: &BufferView, dst: &ImageView) -> Result<Self>
     where
         Self: Sized;
