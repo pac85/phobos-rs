@@ -10,6 +10,7 @@ use petgraph::{Incoming, Outgoing};
 use petgraph::graph::NodeIndex;
 use petgraph::visit::EdgeRef;
 
+use crate::util::user_data::UserData;
 use crate::{
     Allocator, BufferView, DebugMessenger, Error, ImageView, PassGraph, PhysicalResourceBindings,
 };
@@ -29,18 +30,18 @@ struct ResourceState {
 }
 
 /// Implement this on a type to be able to record this type to a command buffer.
-pub trait RecordGraphToCommandBuffer<D: ExecutionDomain, U, A: Allocator> {
+pub trait RecordGraphToCommandBuffer<D: ExecutionDomain, U: UserData, A: Allocator> {
     /// Records a render graph to a command buffer. This also takes in a set of physical bindings to resolve virtual resource names
     /// to actual resources.
     /// # Errors
     /// - This function can error if a virtual resource used in the graph is lacking an physical binding.
-    fn record<'q>(
+    fn record<'q, 'a>(
         &mut self,
         cmd: IncompleteCommandBuffer<'q, D, A>,
         bindings: &PhysicalResourceBindings,
         local_pool: &mut LocalPool<A>,
         debug: Option<Arc<DebugMessenger>>,
-        user_data: &mut U,
+        user_data: &mut U::Ref<'a>,
     ) -> Result<IncompleteCommandBuffer<'q, D, A>>
     where
         Self: Sized;
@@ -83,7 +84,7 @@ macro_rules! parents {
     };
 }
 
-fn insert_in_active_set<D: ExecutionDomain, U, A: Allocator>(
+fn insert_in_active_set<D: ExecutionDomain, U: UserData, A: Allocator>(
     node: NodeIndex,
     graph: &PassGraph<'_, D, U, A>,
     active: &mut HashSet<NodeIndex>,
@@ -246,13 +247,13 @@ fn annotate_pass<D: ExecutionDomain, A: Allocator>(
     Ok(cmd)
 }
 
-fn record_pass<'q, D: ExecutionDomain, U, A: Allocator>(
+fn record_pass<'q, 'a, D: ExecutionDomain, U: UserData, A: Allocator>(
     pass: &mut PassNode<'_, PassResource, D, U, A>,
     bindings: &PhysicalResourceBindings,
     local_pool: &mut LocalPool<A>,
     mut cmd: IncompleteCommandBuffer<'q, D, A>,
     debug: Option<Arc<DebugMessenger>>,
-    user_data: &mut U,
+    user_data: &mut U::Ref<'a>,
 ) -> Result<IncompleteCommandBuffer<'q, D, A>> {
     if let Some(debug) = debug.clone() {
         cmd = annotate_pass(pass, &debug, cmd)?;
@@ -376,7 +377,7 @@ fn record_barrier<'q, D: ExecutionDomain, A: Allocator>(
     }
 }
 
-fn record_node<'q, D: ExecutionDomain, U, A: Allocator>(
+fn record_node<'q, 'a, D: ExecutionDomain, U: UserData, A: Allocator>(
     graph: &mut BuiltPassGraph<'_, D, U, A>,
     resource_states: &mut HashMap<String, ResourceState>,
     node: NodeIndex,
@@ -384,7 +385,7 @@ fn record_node<'q, D: ExecutionDomain, U, A: Allocator>(
     local_pool: &mut LocalPool<A>,
     cmd: IncompleteCommandBuffer<'q, D, A>,
     debug: Option<Arc<DebugMessenger>>,
-    user_data: &mut U,
+    user_data: &mut U::Ref<'a>,
 ) -> Result<IncompleteCommandBuffer<'q, D, A>> {
     let graph = &mut graph.graph.graph;
     let weight = graph.node_weight_mut(node).unwrap();
@@ -436,17 +437,17 @@ fn record_node<'q, D: ExecutionDomain, U, A: Allocator>(
     }
 }
 
-impl<'cb, D: ExecutionDomain, U, A: Allocator> RecordGraphToCommandBuffer<D, U, A>
+impl<'cb, D: ExecutionDomain, U: UserData, A: Allocator> RecordGraphToCommandBuffer<D, U, A>
     for BuiltPassGraph<'cb, D, U, A>
 {
     /// Record the render graph to the command buffer. This will pass `user_data` along to every pass executor in the graph.
-    fn record<'q>(
+    fn record<'q, 'a>(
         &mut self,
         mut cmd: IncompleteCommandBuffer<'q, D, A>,
         bindings: &PhysicalResourceBindings,
         local_pool: &mut LocalPool<A>,
         debug: Option<Arc<DebugMessenger>>,
-        user_data: &mut U,
+        user_data: &mut U::Ref<'a>,
     ) -> Result<IncompleteCommandBuffer<'q, D, A>>
     where
         Self: Sized, {

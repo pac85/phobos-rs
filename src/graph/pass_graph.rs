@@ -13,6 +13,7 @@ use petgraph::dot::Dot;
 use petgraph::graph::NodeIndex;
 use petgraph::prelude::EdgeRef;
 
+use crate::util::user_data::UserData;
 use crate::{Allocator, DefaultAllocator, Error};
 use crate::graph::pass::{BoxedPassFn, EmptyPassExecutor, Pass};
 use crate::graph::resource::ResourceUsage;
@@ -166,7 +167,7 @@ macro_rules! barriers {
     };
 }
 
-impl<'cb, D: ExecutionDomain, U, A: Allocator> PassGraph<'cb, D, U, A> {
+impl<'cb, D: ExecutionDomain, U: UserData, A: Allocator> PassGraph<'cb, D, U, A> {
     /// Create a new task graph.
     pub fn new() -> Self {
         let mut graph = PassGraph {

@@ -76,6 +76,7 @@ use anyhow::{anyhow, bail};
 use anyhow::Result;
 use ash::vk;
 
+use crate::util::user_data::UserData;
 use crate::{Allocator, DefaultAllocator, Error, PhysicalResourceBindings, VirtualResource};
 #[cfg(feature = "fsr2")]
 use crate::{ComputeSupport, Device, ImageView};
@@ -96,18 +97,18 @@ use crate::util::to_vk::IntoVulkanType;
 pub type PassFnResult<'q, D, A> = Result<IncompleteCommandBuffer<'q, D, A>>;
 
 /// Defines a pass executor that can be called when the pass is recorded.
-pub trait PassExecutor<D: ExecutionDomain, U, A: Allocator> {
+pub trait PassExecutor<'a, D: ExecutionDomain, U: UserData, A: Allocator> {
     /// Record this pass to a command buffer.
     fn execute<'q>(
         &mut self,
         cmd: IncompleteCommandBuffer<'q, D, A>,
         local_pool: &mut LocalPool<A>,
         bindings: &PhysicalResourceBindings,
-        user_data: &mut U,
+        user_data: &mut U::Ref<'a>,
     ) -> PassFnResult<'q, D, A>;
 }
 
-impl<D, U, A, F> PassExecutor<D, U, A> for F
+impl<'a, D, U: UserData, A, F> PassExecutor<'a, D, U, A> for F
 where
     D: ExecutionDomain,
     A: Allocator,
@@ -115,7 +116,7 @@ where
         IncompleteCommandBuffer<'q, D, A>,
         &mut LocalPool<A>,
         &PhysicalResourceBindings,
-        &mut U,
+        &mut U::Ref<'a>,
     ) -> PassFnResult<'q, D, A>,
 {
     /// Record this pass to a command buffer by calling the given function.
@@ -124,13 +125,13 @@ where
         cmd: IncompleteCommandBuffer<'q, D, A>,
         local_pool: &mut LocalPool<A>,
         bindings: &PhysicalResourceBindings,
-        user_data: &mut U,
+        user_data: &mut U::Ref<'a>,
     ) -> PassFnResult<'q, D, A> {
         self(cmd, local_pool, bindings, user_data)
     }
 }
 
-pub(crate) type BoxedPassFn<'cb, D, U, A> = Box<dyn PassExecutor<D, U, A> + 'cb>;
+pub(crate) type BoxedPassFn<'cb, D, U, A> = Box<dyn for<'a> PassExecutor<'a, D, U, A> + 'cb>;
 
 /// An empty pass executor that does nothing
 pub struct EmptyPassExecutor;
@@ -147,14 +148,14 @@ impl EmptyPassExecutor {
     }
 }
 
-impl<D: ExecutionDomain, U, A: Allocator> PassExecutor<D, U, A> for EmptyPassExecutor {
+impl<'a, D: ExecutionDomain, U: UserData, A: Allocator> PassExecutor<'a, D, U, A> for EmptyPassExecutor {
     /// Execute the empty pass executor by just returning the command buffer.
     fn execute<'q>(
         &mut self,
         cmd: IncompleteCommandBuffer<'q, D, A>,
         _local_pool: &mut LocalPool<A>,
         _bindings: &PhysicalResourceBindings,
-        _user_data: &mut U,
+        _user_data: &mut U::Ref<'a>,
     ) -> PassFnResult<'q, D, A> {
         Ok(cmd)
     }
@@ -230,7 +231,7 @@ pub struct PassBuilder<'cb, D: ExecutionDomain, U = (), A: Allocator = DefaultAl
     inner: Pass<'cb, D, U, A>,
 }
 
-impl<'cb, D: ExecutionDomain, U, A: Allocator> Pass<'cb, D, U, A> {
+impl<'cb, D: ExecutionDomain, U: UserData, A: Allocator> Pass<'cb, D, U, A> {
     /// Returns the output virtual resource associated with the input resource.
     pub fn output(&self, resource: &VirtualResource) -> Option<&VirtualResource> {
         self.outputs
@@ -251,7 +252,7 @@ impl<'cb, D: ExecutionDomain, U, A: Allocator> Pass<'cb, D, U, A> {
     }
 }
 
-impl<'cb, D: ExecutionDomain, U, A: Allocator> PassBuilder<'cb, D, U, A> {
+impl<'cb, D: ExecutionDomain, U: UserData, A: Allocator> PassBuilder<'cb, D, U, A> {
     /// Create a new pass for generic commands. Does not support commands that are located inside a renderpass.
     pub fn new(name: impl Into<String>) -> Self {
         PassBuilder {
@@ -424,7 +425,7 @@ impl<'cb, D: ExecutionDomain, U, A: Allocator> PassBuilder<'cb, D, U, A> {
     }
 
     /// Set the executor to be called when recording this pass.
-    pub fn executor(mut self, exec: impl PassExecutor<D, U, A> + 'cb) -> Self {
+    pub fn executor(mut self, exec: impl for<'a> PassExecutor<'a, D, U, A> + 'cb) -> Self {
         self.inner.execute = Box::new(exec);
         self
     }
@@ -433,11 +434,11 @@ impl<'cb, D: ExecutionDomain, U, A: Allocator> PassBuilder<'cb, D, U, A> {
     /// when a function is used as a pass executor.
     pub fn execute_fn<F>(mut self, exec: F) -> Self
     where
-        F: for<'q> FnMut(
+        F: for<'q, 'a> FnMut(
                 IncompleteCommandBuffer<'q, D, A>,
                 &mut LocalPool<A>,
                 &PhysicalResourceBindings,
-                &mut U,
+                &mut U::Ref<'a>,
             ) -> PassFnResult<'q, D, A>
             + 'cb, {
         self.inner.execute = Box::new(exec);

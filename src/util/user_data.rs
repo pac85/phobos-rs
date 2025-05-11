@@ -1,4 +1,6 @@
-trait UserData {
+//! A utility trait for passing user data
+
+pub trait UserData {
     type Ref<'a>;
 }
 
