@@ -28,6 +28,11 @@ pub trait BindlessResource {
     /// Get the [vk::DescriptorImageInfo] of this resource.
     fn descriptor_info(&self) -> vk::DescriptorImageInfo;
 
+    /// Get an image view if applicable
+    fn image_view(&self) -> Option<crate::image::ImageView> {
+        None
+    }
+
     /// Add this resource to `pool` and get a handle to it.
     fn into_bindless(self, pool: &BindlessPool<Self>) -> BindlessHandle<Self>
     where
@@ -84,6 +89,10 @@ impl BindlessResource for CombinedImageSampler {
             image_layout: self.image_layout.unwrap_or(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL),
         }
     }
+
+    fn image_view(&self) -> Option<crate::image::ImageView> {
+        Some(self.image_view.clone())
+    }
 }
 
 /// Resource for a sampled image.
@@ -120,6 +129,10 @@ impl BindlessResource for SampledImage {
             image_view: unsafe { self.image_view.handle() },
             image_layout: self.image_layout.unwrap_or(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL),
         }
+    }
+
+    fn image_view(&self) -> Option<crate::image::ImageView> {
+        Some(self.image_view.clone())
     }
 }
 
@@ -183,6 +196,10 @@ impl<R: BindlessResource> BindlessPoolInner<R> {
             })
         }
     }
+
+    fn get(&mut self, key: u32) -> Option<&R> {
+        self.items[key as usize].as_ref()
+    }
 }
 
 /// A bindless pool can hold a number of resources.
@@ -235,6 +252,19 @@ impl<P: BindlessResource> BindlessPool<P> {
                     }
                 })
         })
+    }
+
+    /// Get item from the pool
+    pub fn get_image_view(&self, item: &BindlessHandle<P>) -> Option<crate::image::ImageView> {
+        self.with(|p| p.get(item.key).and_then(|i| i.image_view()))
+    }
+
+    /// Apply a function to resource
+    pub fn resource_with<F, T>(&self, item: &BindlessHandle<P>, f: F) -> Option<T>
+    where
+        F: FnOnce(&P) -> Option<T>
+    {
+        self.with(|p| p.get(item.key).and_then(f))
     }
 
     /// Create a new bindless pool
