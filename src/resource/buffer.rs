@@ -363,4 +363,29 @@ impl BufferView {
     pub fn address(&self) -> vk::DeviceAddress {
         self.address
     }
+
+    /// Create a view inside the view
+    pub fn view(
+        &self,
+        offset: impl Into<vk::DeviceSize>,
+        size: impl Into<vk::DeviceSize>,
+    ) -> Result<BufferView> {
+        let sub_offset = offset.into();
+        let size = size.into();
+        let offset = self.offset + sub_offset;
+        if sub_offset + size > self.size {
+            Err(anyhow::Error::from(Error::BufferViewOutOfRange))
+        } else {
+            Ok(BufferView {
+                handle: self.handle,
+                offset,
+                pointer: unsafe {
+                    self.pointer
+                        .map(|p| NonNull::new(p.as_ptr().offset(sub_offset as isize)).unwrap())
+                },
+                address: self.address + sub_offset,
+                size,
+            })
+        }
+    }
 }
