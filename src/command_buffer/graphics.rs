@@ -35,6 +35,19 @@ impl<D: GfxSupport + ExecutionDomain, A: Allocator> GraphicsCmdBuffer
         .scissor(area)
     }
 
+    /// Sets the viewport to the entire render area. Can only be called inside a renderpass.
+    fn full_viewport(self) -> Self {
+        let area = self.current_render_area;
+        self.viewport(vk::Viewport {
+            x: area.offset.x as f32,
+            y: area.offset.y as f32,
+            width: area.extent.width as f32,
+            height: area.extent.height as f32,
+            min_depth: 0.0,
+            max_depth: 1.0,
+        })
+    }
+
     /// Sets the viewport. Directly translates to [`vkCmdSetViewport`](https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkCmdSetViewport.html).
     /// # Example
     /// ```
@@ -80,6 +93,14 @@ impl<D: GfxSupport + ExecutionDomain, A: Allocator> GraphicsCmdBuffer
         unsafe {
             self.device
                 .cmd_set_scissor(self.handle, 0, std::slice::from_ref(&scissor));
+        }
+        self
+    }
+
+    fn scissors(self, scissor: &[vk::Rect2D]) -> Self {
+        unsafe {
+            self.device
+                .cmd_set_scissor(self.handle, 0, scissor);
         }
         self
     }
