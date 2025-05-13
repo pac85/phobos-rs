@@ -49,6 +49,7 @@ pub struct PassResourceBarrier {
 pub struct PassNode<'cb, R: Resource, D: ExecutionDomain, U = (), A: Allocator = DefaultAllocator> {
     pub(crate) identifier: String,
     pub(crate) color: Option<[f32; 4]>,
+    pub(crate) deps_override: Option<Vec<String>>,
     pub(crate) inputs: Vec<R>,
     pub(crate) outputs: Vec<R>,
     pub(crate) execute: BoxedPassFn<'cb, D, U, A>,
@@ -142,6 +143,14 @@ where
     R: Resource,
     D: ExecutionDomain,
 {
+    fn identifier(&self) -> &String {
+        &self.identifier
+    }
+
+    fn deps_override(&self) -> &Option<Vec<String>> {
+        &self.deps_override
+    }
+
     /// Get the inputs of this pass
     fn inputs(&self) -> &Vec<R> {
         &self.inputs
@@ -183,6 +192,7 @@ impl<'cb, D: ExecutionDomain, U: UserData, A: Allocator> PassGraph<'cb, D, U, A>
             .add_task(PassNode {
                 identifier: "_source".to_string(),
                 color: None,
+                deps_override: None,
                 inputs: vec![],
                 outputs: vec![],
                 execute: EmptyPassExecutor::new_boxed(),
@@ -226,6 +236,7 @@ impl<'cb, D: ExecutionDomain, U: UserData, A: Allocator> PassGraph<'cb, D, U, A>
         self.graph.add_task(PassNode {
             identifier: pass.name,
             color: pass.color,
+            deps_override: pass.deps_override,
             inputs: pass.inputs,
             outputs: pass.outputs,
             execute: pass.execute,
@@ -350,63 +361,6 @@ impl<'cb, D: ExecutionDomain, U: UserData, A: Allocator> PassGraph<'cb, D, U, A>
                 output.stage = *stage;
             }
         }
-        Ok(())
-    }
-
-    // Pass in the build step where identical barriers are merged into one for efficiency reasons.
-    fn merge_identical_barriers(&mut self) -> Result<()> {
-        let graph: &mut Graph<_, _> = &mut self.graph.graph;
-        // Find a barrier that has duplicates
-        let mut to_remove = Vec::new();
-        let mut edges_to_add = Vec::new();
-        let mut barrier_flags: HashMap<NodeIndex, _> = HashMap::new();
-
-        for (node, barrier) in barriers!(graph) {
-            let dst_resource = &Self::barrier_dst_resource(graph, node)?;
-            let dst_usage = dst_resource.usage.clone();
-            barrier_flags.insert(node, (dst_resource.stage, dst_usage.access()));
-            // Now we know the usage of this barrier, we can find all other barriers with the exact same resource usage and
-            // merge those with this one
-            for (other_node, other_barrier) in barriers!(graph) {
-                if other_node == node {
-                    continue;
-                }
-                if to_remove.contains(&node) {
-                    continue;
-                }
-                let other_resource = Self::barrier_dst_resource(graph, other_node)?;
-                let other_usage = &other_resource.usage;
-                if other_barrier.resource.uid() == barrier.resource.uid() {
-                    if !other_usage.is_read() && !dst_usage.is_read() && other_usage != &dst_usage {
-                        return Err(anyhow::Error::from(Error::IllegalTaskGraph));
-                    }
-                    to_remove.push(other_node);
-                    edges_to_add.push((
-                        node,
-                        graph.edges(other_node).next().unwrap().target(),
-                        other_resource.uid().to_owned(),
-                    ));
-                    let (stage, access) = barrier_flags.get(&node).cloned().unwrap();
-                    barrier_flags.insert(
-                        node,
-                        (other_resource.stage | stage, other_resource.usage.access() | access),
-                    );
-                }
-            }
-        }
-
-        for (src, dst, uid) in edges_to_add {
-            graph.update_edge(src, dst, uid);
-        }
-        for node in graph.node_indices() {
-            if let Node::Barrier(barrier) = graph.node_weight_mut(node).unwrap() {
-                let (stage, access) = barrier_flags.get(&node).cloned().unwrap();
-                barrier.dst_stage = stage;
-                barrier.dst_access = access;
-            }
-        }
-        graph.retain_nodes(|_, node| !to_remove.contains(&node));
-
         Ok(())
     }
 }

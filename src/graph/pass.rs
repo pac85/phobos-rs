@@ -167,6 +167,7 @@ impl<'a, D: ExecutionDomain, U: UserData, A: Allocator> PassExecutor<'a, D, U, A
 pub struct Pass<'cb, D: ExecutionDomain, U = (), A: Allocator = DefaultAllocator> {
     pub(crate) name: String,
     pub(crate) color: Option<[f32; 4]>,
+    pub(crate) deps_override: Option<Vec<String>>,
     pub(crate) inputs: Vec<PassResource>,
     pub(crate) outputs: Vec<PassResource>,
     #[derivative(Debug = "ignore")]
@@ -259,6 +260,7 @@ impl<'cb, D: ExecutionDomain, U: UserData, A: Allocator> PassBuilder<'cb, D, U, 
             inner: Pass {
                 name: name.into(),
                 color: None,
+                deps_override: None,
                 execute: EmptyPassExecutor::new_boxed(),
                 inputs: vec![],
                 outputs: vec![],
@@ -273,6 +275,7 @@ impl<'cb, D: ExecutionDomain, U: UserData, A: Allocator> PassBuilder<'cb, D, U, 
             inner: Pass {
                 name: name.into(),
                 color: None,
+                deps_override: None,
                 execute: EmptyPassExecutor::new_boxed(),
                 inputs: vec![],
                 outputs: vec![],
@@ -288,6 +291,7 @@ impl<'cb, D: ExecutionDomain, U: UserData, A: Allocator> PassBuilder<'cb, D, U, 
         Pass {
             name: name.into(),
             color: None,
+            deps_override: None,
             inputs: vec![PassResource {
                 usage: ResourceUsage::Present,
                 resource: swapchain.clone(),
@@ -300,6 +304,17 @@ impl<'cb, D: ExecutionDomain, U: UserData, A: Allocator> PassBuilder<'cb, D, U, 
             execute: EmptyPassExecutor::new_boxed(),
             is_renderpass: false,
         }
+    }
+
+    /// Add a dependency.
+    /// When called the first time it enables dependency override.
+    pub fn add_dependency(mut self, dependency: String) -> Self {
+        if self.inner.deps_override.is_none() {
+           self.inner.deps_override = Some(vec![]);
+        }
+        let deps = &mut self.inner.deps_override.as_mut().unwrap();
+        deps.push(dependency);
+        self
     }
 
     /// Declare that a resource will be used as a sampled image in the given pipeline stages.
