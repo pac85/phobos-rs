@@ -48,6 +48,12 @@ impl<D: GfxSupport + ExecutionDomain, A: Allocator> GraphicsCmdBuffer
         })
     }
 
+    /// Automatically set scissor region to the entire render area
+    fn full_scissor(self) -> Self {
+        let area = self.current_render_area;
+        self.scissor(area)
+    }
+
     /// Sets the viewport. Directly translates to [`vkCmdSetViewport`](https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkCmdSetViewport.html).
     /// # Example
     /// ```

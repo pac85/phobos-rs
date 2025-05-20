@@ -41,6 +41,8 @@ pub trait GraphicsCmdBuffer: TransferCmdBuffer {
     fn full_viewport_scissor(self) -> Self;
     /// Automatically set viewport region to the entire render area
     fn full_viewport(self) -> Self;
+    /// Automatically set scissor region to the entire render area
+    fn full_scissor(self) -> Self;
     /// Sets the viewport. The equivalent of `vkCmdSetViewport`.
     fn viewport(self, viewport: vk::Viewport) -> Self;
     /// Sets the scissor region. Equivalent of `vkCmdSetScissor`.
