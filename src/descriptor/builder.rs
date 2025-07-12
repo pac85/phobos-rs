@@ -105,7 +105,7 @@ impl<'r> DescriptorSetBuilder<'r> {
         bindings: &PhysicalResourceBindings,
     ) -> Result<()> {
         if let Some(PhysicalResource::Image(image)) = bindings.resolve(resource) {
-            self.bind_sampled_image(binding, image, sampler);
+            self.bind_sampled_image(binding, image, sampler, vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL);
             Ok(())
         } else {
             Err(Error::NoResourceBound(resource.uid().to_owned()).into())
@@ -113,14 +113,14 @@ impl<'r> DescriptorSetBuilder<'r> {
     }
 
     /// Bind an image view to the given binding as a [`vk::DescriptorType::COMBINED_IMAGE_SAMPLER`]
-    pub fn bind_sampled_image(&mut self, binding: u32, image: &ImageView, sampler: &Sampler) {
+    pub fn bind_sampled_image(&mut self, binding: u32, image: &ImageView, sampler: &Sampler, layout: vk::ImageLayout) {
         self.inner.bindings.push(DescriptorBinding {
             binding,
             ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
             descriptors: vec![DescriptorContents::Image(DescriptorImageInfo {
                 sampler: unsafe { sampler.handle() },
                 view: image.clone(),
-                layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+                layout,
             })],
         });
     }
@@ -169,7 +169,7 @@ impl<'r> DescriptorSetBuilder<'r> {
             .bindings
             .get(name)
             .ok_or_else(|| Error::NoBinding(name.to_string()))?;
-        self.bind_sampled_image(binding.binding, image, sampler);
+        self.bind_sampled_image(binding.binding, image, sampler, vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL);
         Ok(())
     }
 

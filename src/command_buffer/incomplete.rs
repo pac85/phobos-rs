@@ -316,7 +316,23 @@ impl<D: ExecutionDomain, A: Allocator> IncompleteCommandBuffer<'_, D, A> {
         sampler: &Sampler,
     ) -> Result<Self> {
         self.modify_descriptor_set(set, |builder| {
-            builder.bind_sampled_image(binding, image, sampler);
+            builder.bind_sampled_image(binding, image, sampler, vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL);
+            Ok(())
+        })?;
+        Ok(self)
+    }
+
+    /// Same as `bind_sampled_image` but allows to specify the layout
+    pub fn bind_sampled_image_layout(
+        mut self,
+        set: u32,
+        binding: u32,
+        image: &ImageView,
+        sampler: &Sampler,
+        layout: vk::ImageLayout,
+    ) -> Result<Self> {
+        self.modify_descriptor_set(set, |builder| {
+            builder.bind_sampled_image(binding, image, sampler, layout);
             Ok(())
         })?;
         Ok(self)
