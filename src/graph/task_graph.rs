@@ -50,17 +50,34 @@ pub enum Node<R: Resource, B: Barrier<R>, T: Task<R>> {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct DummyEdgeWeight ();
+pub struct EdgeWeight<R: Resource> {
+    r: Option<R::Uid>
+}
 
-impl std::fmt::Display for DummyEdgeWeight {
+impl<R: Resource> EdgeWeight<R> {
+    pub fn none() -> Self {
+        Self { r: None }
+    }
+
+    pub fn new(r: R::Uid) -> Self {
+        Self { r: Some(r) }
+    }
+}
+
+impl<R: Resource> std::fmt::Display for EdgeWeight<R>
+    where R::Uid: std::fmt::Display
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("").finish()
+        match self.r.as_ref() {
+            Some(u) => u.fmt(f),
+            None => f.debug_tuple("").finish(),
+        }
     }
 }
 
 /// Task graph structure, used for automatic synchronization of resource accesses.
 pub struct TaskGraph<R: Resource, B: Barrier<R> + Clone, T: Task<R>> {
-    pub(crate) graph: Graph<Node<R, B, T>, DummyEdgeWeight>,
+    pub(crate) graph: Graph<Node<R, B, T>, EdgeWeight<R>>,
 }
 
 impl<R: Resource + Clone + Default, B: Barrier<R> + Clone, T: Task<R>> Default
@@ -82,7 +99,7 @@ impl<R: Resource + Clone + Default, B: Barrier<R> + Clone, T: Task<R>> TaskGraph
 
     fn is_dependent(
         &self,
-        graph: &Graph<Node<R, B, T>, DummyEdgeWeight>,
+        graph: &Graph<Node<R, B, T>, EdgeWeight<R>>,
         child: NodeIndex,
         parent: NodeIndex,
     ) -> Result<Option<R>> {
@@ -110,7 +127,7 @@ impl<R: Resource + Clone + Default, B: Barrier<R> + Clone, T: Task<R>> TaskGraph
         Ok(None)
     }
 
-    fn is_task_node(graph: &Graph<Node<R, B, T>, DummyEdgeWeight>, node: NodeIndex) -> Result<bool> {
+    fn is_task_node(graph: &Graph<Node<R, B, T>, EdgeWeight<R>>, node: NodeIndex) -> Result<bool> {
         Ok(matches!(
             graph.node_weight(node).ok_or_else(|| Error::NodeNotFound)?,
             Node::Task(_)
@@ -118,14 +135,14 @@ impl<R: Resource + Clone + Default, B: Barrier<R> + Clone, T: Task<R>> TaskGraph
     }
 
     pub(crate) fn get_edge_attributes(
-        _: &Graph<Node<R, B, T>, DummyEdgeWeight>,
-        _: EdgeReference<DummyEdgeWeight>,
+        _: &Graph<Node<R, B, T>, EdgeWeight<R>>,
+        _: EdgeReference<EdgeWeight<R>>,
     ) -> String {
         String::from("")
     }
 
     pub(crate) fn get_node_attributes(
-        _: &Graph<Node<R, B, T>, DummyEdgeWeight>,
+        _: &Graph<Node<R, B, T>, EdgeWeight<R>>,
         node: (NodeIndex, &Node<R, B, T>),
     ) -> String {
         match node.1 {
@@ -156,7 +173,7 @@ impl<R: Resource + Clone + Default, B: Barrier<R> + Clone, T: Task<R>> TaskGraph
                 let n = self.graph.node_weight(other_node).unwrap();
                 if let Node::Task(n) = n {
                     if deps.contains(n.identifier()) {
-                        self.graph.add_edge(other_node, node, DummyEdgeWeight());
+                        self.graph.add_edge(other_node, node, EdgeWeight::none());
                     }
                 }
             });
@@ -175,13 +192,13 @@ impl<R: Resource + Clone + Default, B: Barrier<R> + Clone, T: Task<R>> TaskGraph
             self.graph.node_indices().for_each(|other_node| {
                 // task depends on other task, add an edge other_task -> task
                 if let Some(dependency) = self.is_dependent(&self.graph, node, other_node).unwrap() {
-                    self.graph.add_edge(other_node, node, DummyEdgeWeight());
+                    self.graph.add_edge(other_node, node, EdgeWeight::new(dependency.uid()));
                 }
 
                 // Note: no else here, since we will detect cycles and error on them,
                 // which is better than silently ignoring some cycles.
                 if let Some(dependency) = self.is_dependent(&self.graph, other_node, node).unwrap() {
-                    self.graph.add_edge(node, other_node, DummyEdgeWeight());
+                    self.graph.add_edge(node, other_node, EdgeWeight::new(dependency.uid()));
                 }
             });
         }
