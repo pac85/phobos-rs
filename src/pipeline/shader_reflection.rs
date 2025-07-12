@@ -78,7 +78,6 @@ fn find_sampled_images(
             let binding = ast.get_decoration(image.id, Decoration::Binding)?;
             let set = ast.get_decoration(image.id, Decoration::DescriptorSet)?;
             let ty = ast.get_type(image.type_id)?;
-            println!("aaa");
             let (ty, array) = match ty {
                 Type::SampledImage { array, .. } => (vk::DescriptorType::COMBINED_IMAGE_SAMPLER, array),
                 Type::Sampler { array, .. } => (vk::DescriptorType::SAMPLER, array),
