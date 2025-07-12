@@ -225,6 +225,22 @@ impl<'r> DescriptorSetBuilder<'r> {
         })
     }
 
+    /// Bind an entire array of sampled images using the same sampler.
+    pub fn bind_storage_image_array(&mut self, binding: u32, images: &[ImageView]) {
+        self.inner.bindings.push(DescriptorBinding {
+            binding,
+            ty: vk::DescriptorType::STORAGE_IMAGE,
+            descriptors: images.iter().map(|image| {
+                DescriptorContents::Image(DescriptorImageInfo {
+                    sampler: vk::Sampler::null(),
+                    view: image.clone(),
+                    layout: vk::ImageLayout::GENERAL,
+                })
+            }).collect()
+        });
+    }
+
+
     /// Resolve and bind a storage image to a specified slot.
     pub fn resolve_and_bind_storage_image(
         &mut self,

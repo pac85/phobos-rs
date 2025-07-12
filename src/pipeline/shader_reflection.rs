@@ -170,15 +170,30 @@ fn find_storage_images(
     for image in &resources.storage_images {
         let binding = ast.get_decoration(image.id, Decoration::Binding)?;
         let set = ast.get_decoration(image.id, Decoration::DescriptorSet)?;
+        let ty = ast.get_type(image.type_id)?;
+        let array = match ty {
+            Type::Image { array, .. } => array,
+            _ => unimplemented!()
+        };
+        let (count, flags) = if !array.is_empty() {
+            if array[0] == 0 {
+                (4096, vk::DescriptorBindingFlags::PARTIALLY_BOUND)
+            } else {
+                (array[0], vk::DescriptorBindingFlags::PARTIALLY_BOUND)
+            }
+        } else {
+            (1, vk::DescriptorBindingFlags::empty())
+        };
+
         info.bindings.insert(
             ast.get_name(image.id)?,
             BindingInfo {
                 set,
                 binding,
                 stage,
-                count: 1,
+                count,
                 ty: vk::DescriptorType::STORAGE_IMAGE,
-                flags: vk::DescriptorBindingFlags::empty(),
+                flags,
             },
         );
     }

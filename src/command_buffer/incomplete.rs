@@ -464,6 +464,20 @@ impl<D: ExecutionDomain, A: Allocator> IncompleteCommandBuffer<'_, D, A> {
         Ok(self)
     }
 
+    /// Bind an entire array of storage images.
+    pub fn bind_storage_image_array(
+        mut self,
+        set: u32,
+        binding: u32,
+        images: &[ImageView],
+    ) -> Result<Self> {
+        self.modify_descriptor_set(set, |builder| {
+            builder.bind_storage_image_array(binding, images);
+            Ok(())
+        })?;
+        Ok(self)
+    }
+
     /// Binds a new descriptor with descriptor type [`vk::DescriptorType::STORAGE_IMAGE`]. The image bound to this is
     /// the image obtained by resolving the input resource from the given resource bindings.
     /// This binding is not actually flushed to the command buffer until the next draw or dispatch call.
