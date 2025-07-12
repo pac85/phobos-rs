@@ -387,6 +387,14 @@ impl<D: ExecutionDomain, U, A: Allocator> GraphViz
     }
 }
 
+impl<'a, D: ExecutionDomain, U, A: Allocator> GraphViz
+    for PassGraph<'a, D, U, A>
+{
+    fn dot(&self) -> Result<String> {
+        self.graph.dot()
+    }
+}
+
 impl<'cb, D: ExecutionDomain, U, A: Allocator> GraphViz
     for BuiltPassGraph<'cb, D, U, A>
 {
